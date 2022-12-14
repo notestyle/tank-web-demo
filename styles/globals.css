@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.overflow-x-scroll {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  overflow-y: scroll;
+}
+.overflow-x-scroll::-webkit-scrollbar {
+  display: none;
+}
+body {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  overflow-y: scroll;
+}
+body::-webkit-scrollbar {
+  display: none;
+}
+
+.toast-message {
+  background-color: rgba(30, 41, 59, 0.1) !important;
+  color: #fff !important;
+  font-size: 14px;
+  padding-top: 20px;
+  padding-left: 20px;
+  -webkit-backdrop-filter: blur(40px) !important;
+  backdrop-filter: blur(40px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.toast-message button {
+  color: white !important;
+}
+
+.Toastify__progress-bar--success {
+  background: rgb(34 197 94) !important;
+}

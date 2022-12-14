@@ -1,0 +1,220 @@
+import Head from 'next/head'
+import { useEffect, useRef, useState } from 'react'
+import { BaseTower, Road, Tank, Wall } from '../gameLib/entity'
+import { CONFIG, getDirection, MAP_ITEM } from '../gameLib/utils'
+import { LOG } from '../gameLib/data'
+import sample1 from '../gameLib/out.json'
+
+export default function GameMatch() {
+  const canvasRef = useRef()
+  const [round, setRound] = useState(1)
+  const [score1, setScore1] = useState(0)
+  const [score2, setScore2] = useState(0)
+
+  let context
+
+  const init = () => {
+    const canvas = canvasRef.current
+    context = canvas.getContext('2d')
+    CONFIG.BOARD_WIDTH = sample1.map.width
+    CONFIG.BOARD_HEIGHT = sample1.map.height
+
+    canvas.width = CONFIG.BOARD_WIDTH * CONFIG.SQUARE_SIZE
+    canvas.height = CONFIG.BOARD_HEIGHT * CONFIG.SQUARE_SIZE
+    context.fillRect(0, 0, canvas.width, canvas.height)
+
+    const team1 = {
+      tanks: [],
+      base: {},
+    }
+
+    const team2 = {
+      tanks: [],
+      base: {},
+    }
+
+    let MY_MAP = []
+    let firstDraw = true
+
+    function drawMap(values) {
+      if (!firstDraw) MY_MAP = MY_MAP.filter((row) => row.constructor.name === 'Road' || ['IRON', 'WATER'].includes(row.type))
+
+      values.forEach((row, i) => {
+        row.forEach((col, j) => {
+          if (firstDraw)
+            MY_MAP.push(
+              new Road({
+                position: { x: j, y: i },
+                context,
+              })
+            )
+          switch (MAP_ITEM[col]) {
+            case 'BLOCK':
+              MY_MAP.push(
+                new Wall({
+                  position: { x: j, y: i },
+                  type: 'BLOCK',
+                  context,
+                })
+              )
+              break
+            case 'IRON':
+              if (firstDraw)
+                MY_MAP.push(
+                  new Wall({
+                    position: { x: j, y: i },
+                    type: 'IRON',
+                    context,
+                  })
+                )
+              break
+            case 'WATER':
+              if (firstDraw)
+                MY_MAP.push(
+                  new Wall({
+                    position: { x: j, y: i },
+                    type: 'WATER',
+                    context,
+                  })
+                )
+              break
+          }
+        })
+      })
+
+      firstDraw = false
+    }
+
+    drawMap(sample1.map.values)
+
+    sample1.team1.tanks.map((tank) => {
+      team1.tanks.push(
+        new Tank({
+          position: { x: tank.pos_y, y: tank.pos_x },
+          type: ['HEAVY', 'NORMAL', 'LIGHT'][Math.floor(Math.random() * 3)],
+          color: 'red',
+          context,
+        })
+      )
+    })
+
+    sample1.team2.tanks.map((tank) => {
+      team2.tanks.push(
+        new Tank({
+          position: { x: tank.pos_y, y: tank.pos_x },
+          type: ['HEAVY', 'NORMAL', 'LIGHT'][Math.floor(Math.random() * 3)],
+          color: 'red',
+          context,
+        })
+      )
+    })
+
+    team1.base = new BaseTower({
+      position: { x: LOG.team1.base.pos_x, y: LOG.team1.base.pos_y },
+      color: 'red',
+      context,
+    })
+
+    function animate() {
+      window.requestAnimationFrame(animate)
+      context.fillStyle = 'black'
+      context.fillRect(0, 0, canvas.width, canvas.height)
+
+      MY_MAP.forEach((row) => row.update())
+
+      team1.tanks.forEach((tank) => {
+        tank.update()
+        tank.bullets.forEach((x) => x.update())
+      })
+
+      // team1.base.update()
+
+      team2.tanks.forEach((tank) => {
+        tank.update()
+        tank.bullets.forEach((x) => x.update())
+      })
+    }
+
+    const timer = (ms) => new Promise((res) => setTimeout(res, ms))
+
+    async function start() {
+      for (let i = 0; i < sample1.rounds.length; i++) {
+        await timer(500)
+
+        setRound(i + 1)
+        sample1.rounds[i].team1.tanks.forEach((tank, j) => {
+          if (tank.fail == 1 || tank.move === 'G') return
+
+          if (tank.move[0] == 'G') {
+            team1.tanks[j].move(getDirection(tank.move), tank.move)
+          } else if (tank.move[0] == 'F') {
+            team1.tanks[j].fire(getDirection(tank.move))
+          }
+        })
+
+        sample1.rounds[i].team2.tanks.forEach((tank, j) => {
+          if (tank.fail == 1 || tank.move === 'G') return
+
+          if (tank.move[0] == 'G') {
+            team2.tanks[j].move(getDirection(tank.move), tank.move)
+          } else if (tank.move[0] == 'F') {
+            team2.tanks[j].fire(getDirection(tank.move))
+          }
+        })
+
+        drawMap(sample1.rounds[i].map.values)
+
+        setScore1(sample1.rounds[i].team1.score)
+        setScore2(sample1.rounds[i].team2.score)
+      }
+    }
+
+    start()
+
+    animate()
+  }
+
+  useEffect(() => {
+    let isSkip = false
+
+    if (!isSkip) {
+      init()
+      // initKeyEvents();
+    }
+
+    return () => {
+      isSkip = true
+    }
+  }, [])
+
+  return (
+    <>
+      <Head>
+        <title>Tank match</title>
+        <meta name="description" content="Generated by create next app" />
+        <link rel="icon" href="/favicon.ico" />
+      </Head>
+      <div className="h-8 flex justify-center items-center">
+        <h1 className=" font-bold">
+          Tournament {round}/{sample1.rounds.length}
+        </h1>
+      </div>
+      <div className="bg-white/5 flex justify-center items-start">
+        <div className=" w-full h-full text-center">
+          <div>Team A</div>
+          <div className="h-full w-full">score: {score1}</div>
+        </div>
+        <canvas
+          className="h-full"
+          ref={canvasRef}
+          // width={CONFIG.BOARD_WIDTH}
+          // height={CONFIG.BOARD_HEIGHT}
+        ></canvas>
+        <div className="w-full h-full text-center">
+          <div>Team B</div>
+          <div className="h-full w-full">score: {score2}</div>
+        </div>
+      </div>
+    </>
+  )
+}
